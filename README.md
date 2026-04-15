@@ -8,8 +8,6 @@ This repository contains the organized analysis scripts used for scRNA-seq, Visi
 ## Directory structure
 
 ```
-scripts/
-│
 ├── 00_utils/
 │   ├── plot_helpers.R                     # Shared plotting helper functions
 │   └── setup_scRNAseq_environment.R       # Package loading, shared variables, colors, markers, and utility functions
