@@ -26,7 +26,6 @@ if (length(missing_packages) > 0L) {
 set.seed(123)
 options(future.globals.maxSize = 600 * 1024^3)
 
-# independent of those fields, so they are not rebuilt in the default run.
 # Set either option to "1" only when that panel itself needs to be redrawn.
 run_spatial_panels <- identical(
   Sys.getenv("RUN_FIG5_SPATIAL", unset = "0"),
@@ -83,7 +82,7 @@ required_spatial_meta <- c(
 )
 stopifnot(all(required_spatial_meta %in% colnames(spatial_meta)))
 
-
+# by Fig5C/FigS7C, so this does not alter their distance-score calculation.
 # Preserve the original Figure4.R metadata correction for ZZJ_8916.
 spatial_outcome[as.character(HD.combined.obj$sample) == "ZZJ_8916"] <- "CR"
 HD.combined.obj$Outcome <- spatial_outcome
@@ -585,10 +584,11 @@ invisible(gc())
 
 malignant_object_path <- paste0(
   "/home/data/chenwenhui/scRNAseq/GPU_IT/QC/",
-  "malignant_obj_intergration_new_new.qs"
+  "malignant_obj_intergration_new.qs"
 )
 malignant.obj <- qs2::qs_read(malignant_object_path)
 stopifnot(ncol(malignant.obj[[]]) >= 155L)
+
 
 ###############################################################################
 # Fig5A: Basal_pEMT and Uro_Differentiation density by Outcome/Time point
@@ -819,27 +819,40 @@ ggplot2::ggsave(
 
 ###############################################################################
 # Fig5E: MP4-high Pre-treatment differential-expression scatter
+# MAST settings follow DEG_MP4_High.R exactly. The calculation is retained
+# below for reproducibility but disabled; plotting reads the saved result.
 ###############################################################################
 
-mp4_pre <- base::subset(
-  malignant.obj,
-  subset = MP4_Status_99 == "MP4_High" & Time_point == "Pre"
-)
-SeuratObject::Idents(mp4_pre) <- "Outcome"
-future::plan(future::sequential)
-set.seed(123)
-DEG.MP4.wilcox <- Seurat::FindMarkers(
-  object = mp4_pre,
-  ident.1 = "NR",
-  ident.2 = "CR",
-  test.use = "wilcox",
-  logfc.threshold = 0.1,
-  min.pct = 0.05,
-  random.seed = 123,
-  verbose = FALSE
+if (FALSE) {
+  mp4_pre <- base::subset(
+    malignant.obj,
+    subset = MP4_Status_99 == "MP4_High" & Time_point == "Pre"
+  )
+  SeuratObject::Idents(mp4_pre) <- "Outcome"
+  Seurat::DefaultAssay(mp4_pre) <- "RNA"
+  future::plan(future::sequential)
+  set.seed(123)
+  DEG.MP4 <- Seurat::FindMarkers(
+    object = mp4_pre,
+    ident.1 = "NR",
+    ident.2 = "CR",
+    test.use = "MAST",
+    logfc.threshold = 0.05,
+    min.pct = 0.02,
+    latent.vars = c("sample"),
+    random.seed = 123
+  )
+  qs2::qs_save(
+    DEG.MP4,
+    "/home/data/chenwenhui/scRNAseq/GPU_IT/QC/DEG.Pre_MP4_MAST.qs"
+  )
+}
+
+DEG.MP4 <- qs2::qs_read(
+  "/home/data/chenwenhui/scRNAseq/GPU_IT/QC/DEG.Pre_MP4_MAST.qs"
 )
 
-plot_data_E <- DEG.MP4.wilcox |>
+plot_data_E <- DEG.MP4 |>
   tibble::rownames_to_column("gene") |>
   dplyr::mutate(
     diff_pct = .data$pct.1 - .data$pct.2,
@@ -903,9 +916,7 @@ label_data_E <- plot_data_E |>
       dplyr::if_else(.data$gene %in% priority_genes_E, "priority", "standard"),
       levels = c("standard", "priority")
     ),
-    label_fontface = dplyr::if_else(
-      .data$gene %in% priority_genes_E, "bold", "plain"
-    ),
+    label_fontface = "plain",
     label_size = dplyr::if_else(
       .data$gene %in% priority_genes_E, 3.0, 2.8
     ),
@@ -939,7 +950,7 @@ direction_colors <- c(
 direction_and_label_colors <- c(
   direction_colors,
   standard = "black",
-  priority = "#C2185B"
+  priority = "#C00000"
 )
 
 Fig5E <- ggplot2::ggplot(
@@ -969,8 +980,9 @@ Fig5E <- ggplot2::ggplot(
   ) +
   ggrastr::geom_point_rast(
     data = priority_label_data_E,
-    shape = 21, fill = "grey70", colour = "#C2185B",
-    size = 3.2, stroke = 0.8, raster.dpi = 600
+    ggplot2::aes(fill = .data$group),
+    shape = 21, colour = "black",
+    size = 2.5, stroke = 0.35, raster.dpi = 600
   ) +
   ggrepel::geom_text_repel(
     data = label_data_E,
@@ -1346,24 +1358,37 @@ grDevices::dev.off()
 
 ###############################################################################
 # FigS7E: all Pre-treatment malignant cells, NR versus CR
+# MAST settings follow the Pre_NR versus Pre_CR block in MAST_analysis.R.
+# The calculation is retained for reproducibility but disabled; plotting reads
+# the saved result.
 ###############################################################################
 
-pre_tumour <- base::subset(malignant.obj, subset = Time_point == "Pre")
-SeuratObject::Idents(pre_tumour) <- "Outcome"
-future::plan(future::sequential)
-set.seed(123)
-DEG.pre.wilcox <- Seurat::FindMarkers(
-  object = pre_tumour,
-  ident.1 = "NR",
-  ident.2 = "CR",
-  test.use = "wilcox",
-  logfc.threshold = 0.1,
-  min.pct = 0.05,
-  random.seed = 123,
-  verbose = FALSE
+if (FALSE) {
+  SeuratObject::Idents(malignant.obj) <- "Group"
+  Seurat::DefaultAssay(malignant.obj) <- "RNA"
+  future::plan(future::sequential)
+  set.seed(123)
+  DEG.Pre_NR_vs_Pre_CR <- Seurat::FindMarkers(
+    object = malignant.obj,
+    ident.1 = "Pre_NR",
+    ident.2 = "Pre_CR",
+    test.use = "MAST",
+    logfc.threshold = 0.05,
+    min.pct = 0.02,
+    latent.vars = c("sample"),
+    random.seed = 123
+  )
+  qs2::qs_save(
+    DEG.Pre_NR_vs_Pre_CR,
+    "/home/data/chenwenhui/scRNAseq/GPU_IT/QC/DEG.Pre_NR_vs_Pre_CR_MAST.qs"
+  )
+}
+
+DEG.Pre_NR_vs_Pre_CR <- qs2::qs_read(
+  "/home/data/chenwenhui/scRNAseq/GPU_IT/QC/DEG.Pre_NR_vs_Pre_CR_MAST.qs"
 )
 
-plot_data_S7E <- DEG.pre.wilcox |>
+plot_data_S7E <- DEG.Pre_NR_vs_Pre_CR |>
   tibble::rownames_to_column("gene") |>
   dplyr::mutate(
     diff_pct = .data$pct.1 - .data$pct.2,
@@ -1485,8 +1510,8 @@ ggplot2::ggsave(
 
 rm(
   malignant.obj,
-  mp4_pre,
-  pre_tumour,
+  DEG.MP4,
+  DEG.Pre_NR_vs_Pre_CR,
   mp4_high_metadata
 )
 invisible(gc())
