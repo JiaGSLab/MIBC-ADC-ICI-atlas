@@ -15,7 +15,7 @@ if (!dir.exists(file.path(output_dir, "Figures", "FigS"))) {
 }
 
 #Fig1C UMAP美化
-seu.combined.IT = qs_read("/home/data/chenwenhui/scRNAseq/GPU_IT/QC/seu_combined_IT_filtered_obj_intergration_new.qs")
+seu.combined.IT = qs_read("/home/data/chenwenhui/scRNAseq/GPU_IT/QC/seu_combined_IT_filtered_obj_intergration.qs")
 umap_df = data.frame(Embeddings(seu.combined.IT, "umap"),
                      seu.combined.IT$major,
                      seu.combined.IT$subcelltype,
@@ -172,7 +172,7 @@ prepare_figs01a_data <- function(sample_info_path) {
 
   outcome_counts <- table(patient_data$Outcome)
   valid_counts <- identical(names(outcome_counts), c("CR", "NR")) &&
-    identical(as.integer(outcome_counts), c(27L, 21L))
+    identical(as.integer(outcome_counts), c(28L, 20L))
   if (nrow(patient_data) != 48L || !valid_counts) {
     stop("Unexpected IT cohort size or Outcome counts")
   }
@@ -500,7 +500,7 @@ suppressPackageStartupMessages({
 })
 
 figs1_output_dir <- "/home/data/chenwenhui/scRNAseq/GPU_IT/QC/Figures/FigS/FigS01_revised"
-figs1_object_path <- "/home/data/chenwenhui/scRNAseq/GPU_IT/QC/seu_combined_IT_filtered_obj_intergration_new.qs"
+figs1_object_path <- "/home/data/chenwenhui/scRNAseq/GPU_IT/QC/seu_combined_IT_filtered_obj_intergration.qs"
 dir.create(figs1_output_dir, recursive = TRUE, showWarnings = FALSE)
 
 if (!exists("test.dist.table", mode = "function") ||
